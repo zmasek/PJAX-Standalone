@@ -3,13 +3,15 @@
  *
  * A standalone implementation of Pushstate AJAX, for non-JQuery webpages.
  * JQuery users should use the original implimention at: https://github.com/defunkt/jquery-pjax
- * 
- * @version 0.5
- * @author Carl
- * @source https://github.com/thybag/PJAX-Standalone
+ *
+ * Reworked into AMD Dojo plugin and added support for multiple query string arguments by zmasek.
+ *
+ * @original-version 0.5
+ * @original-author Carl
+ * @original-source https://github.com/thybag/PJAX-Standalone
  * @license MIT
  */
-(function(){
+define(["dojo/domReady!"], function(){
 
 	//Object to store private values/methods.
 	var internal = {
@@ -19,7 +21,7 @@
 		//Attempt to check that a device supports pushstate before attempting to use it.
 		"is_supported": window.history && window.history.pushState && window.history.replaceState && !navigator.userAgent.match(/((iPod|iPhone|iPad).+\bOS\s+[1-4]|WebApps\/.+CFNetwork)/)
 	};
-	
+
 	/**
 	 * AddEvent
 	 * Cross browser compatable method to add event listeners
@@ -85,9 +87,9 @@
 	internal.addEvent(window, 'popstate', function(st){
 		if(st.state != null){
 			//Convert state data to pjax options
-			var options = internal.parseOptions({	
-				'url': st.state.url, 
-				'container': st.state.container, 
+			var options = internal.parseOptions({
+				'url': st.state.url,
+				'container': st.state.container,
 				'history': false
 			});
 			//If somthing went wrong, return.
@@ -102,7 +104,7 @@
 	 * Attach pjax listeners to a link.
 	 * @scope private
 	 * @param link_node. link that will be clicked.
-	 * @param content_node. 
+	 * @param content_node.
 	 */
 	internal.attach = function(node, options){
 
@@ -176,7 +178,7 @@
 		//Create tmp node (So we can interact with it via the DOM)
 		var tmp = document.createElement('div');
 		//Add html
-		tmp.innerHTML = html; 
+		tmp.innerHTML = html;
 		//Look through all returned divs.
 		tmpNodes = tmp.getElementsByTagName('div');
 		for(var i=0;i<tmpNodes.length;i++){
@@ -185,7 +187,7 @@
 				//not PJAX ready, but instead likely the full HTML content. in Addition we can also guess that
 				//the content of this node is what we want to update our container with.
 				//Thus use this content as the HTML to append in to our page via PJAX.
-				return tmpNodes[i].innerHTML; 
+				return tmpNodes[i].innerHTML;
 				break;
 			}
 		}
@@ -202,7 +204,7 @@
 	 * @param addtohistory. Does this load require a history event.
 	 */
 	internal.handle = function(options){
-		
+
 		//Fire beforeSend Event.
 		internal.triggerEvent(options.container, 'beforeSend');
 
@@ -211,7 +213,7 @@
 
 			//Ensure we have the correct HTML to apply to our container.
 			if(options.smartLoad) html = internal.smartLoad(html, options);
-			
+
 			//Update the dom with the new content
 			options.container.innerHTML = html;
 
@@ -219,7 +221,7 @@
 			if(options.parseLinksOnload){
 				internal.parseLinks(options.container, options);
 			}
-			
+
 			//If no title was provided
 			if(typeof options.title == 'undefined'){
 				//Attempt to grab title from page contents.
@@ -229,7 +231,7 @@
 					options.title = document.title;
 				}
 			}
-			
+
 			//Do we need to add this to the history?
 			if(options.history){
 				//If this is the first time pjax has run, create a state object for the current page.
@@ -250,14 +252,14 @@
 				internal.triggerEvent(options.container,'success');
 			}
 
-			//If Google analytics is detected push a trackPageView, so PJAX pages can 
+			//If Google analytics is detected push a trackPageView, so PJAX pages can
 			//be tracked successfully.
 			if(window._gaq) _gaq.push(['_trackPageview']);
 
 			//Set new title
 			document.title = options.title;
 		});
-		
+
 	}
 
 	/**
@@ -282,7 +284,12 @@
 				}
 			}
 			//Secret pjax ?get param so browser doesnt return pjax content from cache when we dont want it
-			xmlhttp.open("GET", location + '?_pjax', true);
+            //Testing for additional parameters in location
+            if (!/[?&]/.test(location)) {
+                xmlhttp.open("GET", location + '?_pjax', true);
+            } else {
+                xmlhttp.open("GET", location + '&_pjax', true);
+            }
 			//Add headers so things can tell the request is being performed via AJAX.
 			xmlhttp.setRequestHeader('X-PJAX', 'true'); //PJAX header
 			xmlhttp.setRequestHeader('X-Requested-With', 'XMLHttpRequest');//Standard AJAX header.
@@ -366,7 +373,7 @@
 	 * @scope public
 	 *
 	 * Can be called in 3 ways.
-	 * Calling as connect(); 
+	 * Calling as connect();
 	 * 		Will look for links with the data-pjax attribute.
 	 *
 	 * Calling as connect(container_id)
@@ -375,7 +382,7 @@
 	 * Calling as connect(container_id, class_name)
 	 * 		Will try to attach any links with the given classname, using container_id as the target.
 	 *
-	 * Calling as connect({	
+	 * Calling as connect({
 	 *						'url':'somepage.php',
 	 *						'container':'somecontainer',
 	 * 						'beforeSend': function(){console.log("sending");}
@@ -405,19 +412,19 @@
 		delete options.history;
 
 		//Dont run until the window is ready.
-		internal.addEvent(window, 'load', function(){	
+		internal.addEvent(window, 'load', function(){
 			//Parse links using specified options
 			internal.parseLinks(document, options);
 		});
 	}
-	
+
 	/**
 	 * invoke
 	 * Directly invoke a pjax page load.
 	 * invoke({url: 'file.php', 'container':'content'});
 	 *
 	 * @scope public
-	 * @param options  
+	 * @param options
 	 */
 	this.invoke = function(/* options */){
 		//url, container
@@ -431,8 +438,8 @@
 		//If PJAX isn't supported by the current browser, push user to specified page.
 		if(!internal.is_supported){
 			document.location = options.url;
-			return;	
-		} 
+			return;
+		}
 		//Proccess options
 		options = internal.parseOptions(options);
 		//If everything went ok, activate pjax.
@@ -440,5 +447,5 @@
 	}
 
 	//Make PJAX object accessible
-	window.pjax = this;
-}).call({});
+	return this;
+});
